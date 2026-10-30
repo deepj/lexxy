@@ -10,6 +10,13 @@ import { promisify } from "util"
 /* global Buffer */
 const brotliPromise = promisify(brotliCompress)
 
+// A host that serves the bundle without an import map can point the lazy Active Storage import at a file of its own,
+// resolved against the bundle's URL. Unset, the import stays bare.
+const paths = {}
+if (process.env.LEXXY_ACTIVESTORAGE_PATH) {
+  paths["@rails/activestorage"] = process.env.LEXXY_ACTIVESTORAGE_PATH
+}
+
 export default [
   {
     input: "./src/index.js",
@@ -17,11 +24,13 @@ export default [
       {
         file: "./app/assets/javascript/lexxy.js",
         format: "esm",
-        sourcemap: true
+        sourcemap: true,
+        paths
       },
       {
         file: "./app/assets/javascript/lexxy.min.js",
         format: "esm",
+        paths,
         plugins: [ terser() ]
       }
     ],
