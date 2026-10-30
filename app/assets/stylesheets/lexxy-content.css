@@ -175,8 +175,11 @@
     }
   }
 
-  /* Kept at class specificity so it still outweighs the element margin rules above. */
-  *:has(+ .horizontal-divider) {
+  /* Kept at class specificity so it still outweighs the element margin rules above. Inline elements are left out of
+     the subject, as a divider is never their next sibling: with every element a subject of a sibling :has(), Blink
+     checks a paragraph's children again on each insertion into it, which turns quadratic in a long paragraph of
+     inline elements. */
+  :where(:not(action-text-attachment, span, a, b, i, u, s, strong, em, code, mark, sub, sup, del, ins, kbd, br, img)):has(+ .horizontal-divider) {
     margin-block-end: 0;
   }
 
