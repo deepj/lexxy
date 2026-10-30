@@ -84,6 +84,22 @@ export function isEditorFocused(editor) {
   return rootElement !== null && rootElement.contains(document.activeElement)
 }
 
+// Whether an update listener's update left every node as it was in an earlier state. A change to a node always puts a
+// new node object in the node map, but empty dirty sets alone don't prove there was none since that earlier state: a
+// listener registered before the caller's that throws hides a commit from it. So the node maps are compared too.
+export function isSameEditorContent({ editorState, dirtyElements, dirtyLeaves }, earlierEditorState) {
+  if (earlierEditorState === null || dirtyElements.size > 0 || dirtyLeaves.size > 0) return false
+
+  const nodes = editorState._nodeMap
+  const earlierNodes = earlierEditorState._nodeMap
+  if (nodes.size !== earlierNodes.size) return false
+
+  for (const [ key, node ] of nodes) {
+    if (earlierNodes.get(key) !== node) return false
+  }
+  return true
+}
+
 export function $isAtNodeEdge(point, atStart = null) {
   if (atStart === null) {
     return $isAtNodeEdge(point, true) || $isAtNodeEdge(point, false)

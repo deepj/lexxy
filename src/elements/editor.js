@@ -20,7 +20,7 @@ import { UploadRequests } from "../editor/attachments/upload_requests"
 import { CommandDispatcher } from "../editor/command_dispatcher"
 import Selection from "../editor/selection"
 import { createElement, dispatch, generateDomId, parseHtml, stripTrailingCodeBlockNewlines } from "../helpers/html_helper"
-import { isAttachmentSpacerTextNode, isEditorFocused } from "../helpers/lexical_helper"
+import { isAttachmentSpacerTextNode, isEditorFocused, isSameEditorContent } from "../helpers/lexical_helper"
 import { ListenerBin, registerEventListener } from "../helpers/listener_helper"
 import LexicalToolbar from "./toolbar"
 import HeadingDropdown from "./dropdown/heading"
@@ -59,6 +59,7 @@ export class LexicalEditorElement extends HTMLElement {
 
   #initialValue = ""
   #previousInternalFormValue = null
+  #syncedEditorState = null
 
   #initializeEventDispatched = false
   #editorInitializedDispatched = false
@@ -131,6 +132,7 @@ export class LexicalEditorElement extends HTMLElement {
     this.currentlyFocused = false
 
     this.#previousInternalFormValue = null
+    this.#syncedEditorState = null
     this.valueBeforeDisconnect = this.value
 
     this.#clearCachedValues()
@@ -644,12 +646,20 @@ export class LexicalEditorElement extends HTMLElement {
   }
 
   #synchronizeWithChanges() {
-    this.#listeners.track(this.editor.registerUpdateListener(({ editorState, dirtyElements, dirtyLeaves }) => {
+    this.#listeners.track(this.editor.registerUpdateListener((update) => {
+      const { editorState } = update
+
       // Reading the value serializes and sanitizes the whole document. Only
-      // invalidate the cache when a node actually changed, so an update that
-      // just moved the selection reuses it instead of re-serializing.
-      if (dirtyElements.size > 0 || dirtyLeaves.size > 0) this.#clearCachedValues()
+      // invalidate the cache when a node changed since the value was last
+      // synchronized, so an update that just moved the selection reuses it
+      // instead of re-serializing. The synchronized state is forgotten first,
+      // so a serialization that throws leaves none behind.
+      if (!isSameEditorContent(update, this.#syncedEditorState)) {
+        this.#syncedEditorState = null
+        this.#clearCachedValues()
+      }
       this.#setInternalFormValue(this.value)
+      this.#syncedEditorState = editorState
       this.#toggleEmptyStatus()
       this.#requestValidityRefresh()
       this.dispatchAttributesChange(editorState)
